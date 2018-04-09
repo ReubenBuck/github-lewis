@@ -58,28 +58,45 @@
 
 #rsync -av --no-p --no-o --no-g -I --size-only lewis4-dtn.rnet.missouri.edu://storage/htc/lyonslab/washU_unprocessed/180119_84560625518588
 
-# sbatch --array=$(ls ./*sample_sheet.txt) map_libraries.sh
+# START=$(date +%g%m%d%H%M%S) sbatch --array=$(ls ./*sample_sheet.txt) map_libraries.sh
 
 #-------------------------------------------------------------------------------
 
 module load bwa/bwa-0.7.17
 module load samtools/samtools-1.7
 module load pigz/pigz-2.4
-module load 
+module load gatk/gatk-4.0.1.1
 
+THREADS=20
 
 SAMPLE_SHEET=$SLURM_ARRAY_TASK_ID
 
-START=$(date +%g%m%d%H%M%S)
+#START=$(date +%g%m%d%H%M%S)
 
+if [ -z ${START+x} ];
+	then 
+		echo "START time is empty, check cmd line, exiting"
+		exit
+	else 
+		echo "START time is set to $START, process is begining"
+	fi
+
+
+# before we start cheking everything we set up a wait time
+sleep $((RANDOM % 10))
+
+
+# need to check if start was recorded 
+
+# check if all files exist first. 
+# ref files, idx files, fastq/bam files
 for ROW in $(seq 1 $(wc -l < $SAMPLE_SHEET))
-#for ROW in $(seq 1 2)
 do
 	read IDfl IDln PL LB SM PI R1 R2 D1 D2 REF REFDIR IDX IDXDIR FQDIR MAPDIR LOGDIR MEDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
-	
+
+	# create a log dir so everything has somewhere to go
 	if [ -d $LOGDIR/$START ]
         then	
-        		echo "begin next read group\n" &>> $LOGDIR/$START/$SM.run.log
                 echo "$LOGDIR/$START found" &>> $LOGDIR/$START/$SM.run.log
         else
                 mkdir -p $LOGDIR/$START
@@ -87,9 +104,59 @@ do
                 echo "LOGDIR not found, making new one called $LOGDIR/$START" &>> $LOGDIR/$START/$SM.run.log
         fi
 
+
+	# check if fastq files exist
+	if [[ $D2 = *".bam" ]]; 
+		then
+			if [[ -e $D1/$D2 ]]; 
+				then
+					echo bam file $D2/$D1 found &>> $LOGDIR/$START/$SM.run.log
+				else
+					echo bam file $D2/$D1 not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					exit
+				fi
+		else
+			if [[ -e $D1/$R1.gz && -e $D2/$R2.gz ]]; 
+				then
+					echo fastq files $D1/$R1.gz and $D2/$R2.gz found &>> $LOGDIR/$START/$SM.run.log
+				else
+					echo fastq files $D1/$R1.gz and $D2/$R2.gz found, exiting &>> $LOGDIR/$START/$SM.run.log
+					exit
+				fi
+
+	# check if ref exists
+	if [[ -e $REFDIR/$REF ]]; 
+				then
+					echo ref file $REFDIR/$REF found &>> $LOGDIR/$START/$SM.run.log
+				else
+					echo ref file $REFDIR/$REF not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					exit
+				fi
+
+	# check if index exists
+	if [[ -e $IDXDIR/$IDX ]]; 
+				then
+					echo index file $IDXDIR/$IDX found &>> $LOGDIR/$START/$SM.run.log
+				else
+					echo index file $IDXDIR/$IDX not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					exit
+				fi
+	echo "\n\n"
+done
+
+echo "All index, ref and data files were found, starting RG alignment\n" &>> $LOGDIR/$START/$SM.run.log
+
+
+
+# begin processing data
+for ROW in $(seq 1 $(wc -l < $SAMPLE_SHEET))
+do
+	read IDfl IDln PL LB SM PI R1 R2 D1 D2 REF REFDIR IDX IDXDIR FQDIR MAPDIR LOGDIR MEDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
+	
+
     # state read group
 	RG="@RG\tID:$IDfl:$IDln\tPL:$PL\tLB:$LB\tSM:$SM\tPI:$PI"
-	echo -e At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM.run.log
+	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM.run.log
 
 
 	if [ -d $FQDIR ]
@@ -116,57 +183,25 @@ do
                 mkdir $MEDIR
         fi
 
-# make it so that we can learn the data format
-# if we can find the word bam in the column then we do the bam path
-# if we don't then we do the fastq path.
-
 	
-	# uncompress the files, the head pipe is for testing a subset of our data
+	# uncompress the files
 	if [[ $D2 = *".bam" ]]; 
 		then
-			echo data is storred in unaligned bam format, copying and converting to fastq &>> $LOGDIR/$START/$SM.run.log
-			rsync -av --no-p --no-o --no-g buckleyrm@lewis4-dtn.rnet.missouri.edu:$D1/$D2 $FQDIR/ &>> $LOGDIR/$START/$SM.run.log
-			chmod uga+w $FQDIR/$D2
-
-			# check if file transfered
-			if [[ -e $FQDIR/$D2 ]]; 
-				then
-					echo file trasnfered &>> $LOGDIR/$START/$SM.run.log
-				else
-					echo transfer failed, exiting &>> $LOGDIR/$START/$SM.run.log
-					exit
-				fi
-
-			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $FQDIR/$D2 &>> $LOGDIR/$START/$SM.run.log
-
-			# check if files successfully uncompressed
-			if [[ -s $FQDIR/$R1 && -s $FQDIR/$R2 ]]; 
-				then
-					echo uncompressed read pair files found &>> $LOGDIR/$START/$SM.run.log
-					rm $FQDIR/$D2
-				else
-					echo one or both uncompressed files are not found or are empty, exiting &>> $LOGDIR/$START/$SM.run.log
-					exit
-				fi
-
+			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM.run.log
+			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM.run.log
 		else
-			echo data is storred as compressed fastq, copying and uncompressing &>> $LOGDIR/$START/$SM.run.log
-			rsync -av --no-p --no-o --no-g buckleyrm@lewis4-dtn.rnet.missouri.edu:$D1/$R1.gz $FQDIR/ &>> $LOGDIR/$START/$SM.run.log
-			rsync -av --no-p --no-o --no-g buckleyrm@lewis4-dtn.rnet.missouri.edu:$D2/$R2.gz $FQDIR/ &>> $LOGDIR/$START/$SM.run.log
-	
-			chmod uga+w $FQDIR/$R1.gz
-			chmod uga+w $FQDIR/$R2.gz
+			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM.run.log
+			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$R1
+			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$R2
+		fi
 
-			# check if files trasnsfered
-			if [[ -e $FQDIR/$R1.gz && -e $FQDIR/$R2.gz ]]; 
-				then
-					echo file trasnfered &>> $LOGDIR/$START/$SM.run.log
-				else
-					echo transfer failed, exiting &>> $LOGDIR/$START/$SM.run.log
-					exit
-				fi
-			
-			unpigz -p $THREADS $FQDIR/$R1.gz $FQDIR/$R2.gz
+	# check if file succesfully uncompressed
+	if [[ -s $FQDIR/$R1 && -s $FQDIR/$R2 ]]; 
+		then
+			echo uncompressed read pair files found &>> $LOGDIR/$START/$SM.run.log
+		else
+			echo one or both uncompressed files are not found or are empty, exiting &>> $LOGDIR/$START/$SM.run.log
+			exit
 		fi
 
 
@@ -188,7 +223,6 @@ do
 
 	# sort and mark optical duplicates
 	samtools sort --threads $THREADS -o $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM.run.log
-	#gatk SortSam -I:$MAPDIR/$LB.$IDfl.$IDln.bam -O:$MAPDIR/$LB.$IDfl.$IDln.sorted.bam -SO:coordinate
 
 	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam ]
 	then
@@ -201,8 +235,9 @@ do
 
 	echo end sort, begin duplicate marking &>> $LOGDIR/$START/$SM.run.log
 
-	gatk MarkDuplicates -I=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam -O=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.markedDup.bam -M=$MEDIR/$SM.$LB.$IDfl.$IDln.metrics 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.markDup.log
+	gatk MarkDuplicates -I=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam -O=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.markedDup.bam -M=$MEDIR/$SM.$LB.$IDfl.$IDln.metrics -OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.markDup.log
 	# check for sorted bams and rm unsorted bams
+	# using recomended distance for patterend flowcells, default is 100.
 
 	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.markedDup.bam ]
         then
@@ -234,9 +269,8 @@ do
 	
 
 	echo -e "\n" end merge for sample $SAMPLE, begin sort for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
-	# sort and mark optical duplicates
+	# sort and mark PCR duplicates
         samtools sort --threads $THREADS -o $MAPDIR/$SAMPLE.sorted.bam $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM.run.log
-        #gatk SortSam -I:$MAPDIR/$LB.$IDfl.$IDln.bam -O:$MAPDIR/$LB.$IDfl.$IDln.sorted.bam -SO:coordinate
 
         if [ -s $MAPDIR/$SAMPLE.sorted.bam ]
         then
@@ -246,10 +280,11 @@ do
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
                 exit
         fi
+    
     echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
         gatk MarkDuplicates -I=$MAPDIR/$SAMPLE.sorted.bam -O=$MAPDIR/$SAMPLE.sorted.markedDup.bam -M=$MEDIR/$SAMPLE.metrics 2> $LOGDIR/$START/$SAMPLE.markDup.log
-        # check for sorted bams and rm unsorted bams
 
+        # check for sorted bams and rm unsorted bams
         if [ -s $MAPDIR/$SAMPLE.sorted.markedDup.bam ]
         then
                 echo sorted bam found, removing $MAPDIR/$SAMPLE.sorted.bam &>> $LOGDIR/$START/$SM.run.log
