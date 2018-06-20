@@ -3,13 +3,11 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition General  # for jobs < 2hrs try 'General'
-#SBATCH --nodes=1
-#SBATCH --ntasks=1  # used for MPI codes, otherwise leave at '1'
-#SBATCH --cpus-per-task=2 # cores per task
-#SBATCH --mem-per-cpu=8G  # memory per core (default is 1GB/core)
-#SBATCH --time 0-00:10  # days-hours:minutes
-#SBATCH --qos=normal
+#SBATCH --partition Lewis  # for jobs < 2hrs try 'General'
+#SBATCH -N1
+#SBATCH -n20 # cores 
+#SBATCH --mem 100G  # memory 
+#SBATCH -t 2-00:00  # days-hours:minutes
 #SBATCH --account=general  # investors will replace this with their account name
 #
 ## labels and outputs
@@ -62,7 +60,7 @@ module load picard-tools/picard-tools-2.1.1
 module load java/openjdk/java-1.8.0-openjdk
 
 
-THREADS=2
+THREADS=20
 
 
 echo $SLURM_ARRAY_TASK_ID
