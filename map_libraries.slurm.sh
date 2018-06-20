@@ -3,12 +3,12 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition Lewis  # for jobs < 2hrs try 'General'
+#SBATCH --partition General  # for jobs < 2hrs try 'General'
 #SBATCH --nodes=1
 #SBATCH --ntasks=1  # used for MPI codes, otherwise leave at '1'
-#SBATCH --cpus-per-task=20 # cores per task
+#SBATCH --cpus-per-task=2 # cores per task
 #SBATCH --mem-per-cpu=8G  # memory per core (default is 1GB/core)
-#SBATCH --time 2-00:00  # days-hours:minutes
+#SBATCH --time 0-00:10  # days-hours:minutes
 #SBATCH --qos=normal
 #SBATCH --account=general  # investors will replace this with their account name
 #
@@ -36,40 +36,40 @@
 
 # input is a tab delimited file with the following fields:
 # IDfl: flowcell ID
-# IDln    lane no
-# PL: instrument
+# IDln: lane no
 # LB: library name
 # SM: sample name
-# PI: insert size
 # R1: filename for read 1 (no .gz) 
 # R2: filename for read 2 (no .gz)
 # D1: dir for read 1 / dir name for uBAM
 # D2: dir for read 2 / file name for uBAM
 # REF: ref genome base
-# REFDIR: dir of ref genome
 # IDX: indexed ref base
-# IDXDIR: dir of indexed ref genome
 # FQDIR: dir for uncompressed fastq files
 # MAPDIR: output dir
 # LOGDIR: log file dir
 # MEDIR: metrics file dir
+# QUALDIR: directory for quality metrics
 
-# here we can print the RG info
-
-#rsync -av --no-p --no-o --no-g -I --size-only lewis4-dtn.rnet.missouri.edu://storage/htc/lyonslab/washU_unprocessed/180119_84560625518588
-
-# START=$(date +%g%m%d%H%M%S) sbatch --array=$(ls ./*sample_sheet.txt) map_libraries.sh
-
+# START=$(date +%g%m%d%H%M%S) LIST=<samp_sheet_paths> sbatch --array=1-$(wc -l <samp_sheet_paths> | cut -d " " -f 1) map_libraries.slurm.sh
 #-------------------------------------------------------------------------------
 
 module load bwa/bwa-0.7.17
 module load samtools/samtools-1.7
 module load pigz/pigz-2.4
-module load gatk/gatk-4.0.1.1
+module load fastqc
+module load picard-tools/picard-tools-2.1.1
+module load java/openjdk/java-1.8.0-openjdk
 
-THREADS=20
 
-SAMPLE_SHEET=$SLURM_ARRAY_TASK_ID
+THREADS=2
+
+
+echo $SLURM_ARRAY_TASK_ID
+
+SAMPLE_SHEET=$(sed -n "${SLURM_ARRAY_TASK_ID}p" $LIST)
+
+echo $SAMPLE_SHEET
 
 #START=$(date +%g%m%d%H%M%S)
 
@@ -92,7 +92,7 @@ sleep $((RANDOM % 10))
 # ref files, idx files, fastq/bam files
 for ROW in $(seq 1 $(wc -l < $SAMPLE_SHEET))
 do
-	read IDfl IDln PL LB SM PI R1 R2 D1 D2 REF REFDIR IDX IDXDIR FQDIR MAPDIR LOGDIR MEDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
+	read IDfl IDln LB SM R1 R2 D1 D2 REF IDX FQDIR MAPDIR LOGDIR MEDIR QUALDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
 
 	# create a log dir so everything has somewhere to go
 	if [ -d $LOGDIR/$START ]
@@ -123,22 +123,23 @@ do
 					echo fastq files $D1/$R1.gz and $D2/$R2.gz found, exiting &>> $LOGDIR/$START/$SM.run.log
 					exit
 				fi
+	fi
 
 	# check if ref exists
-	if [[ -e $REFDIR/$REF ]]; 
+	if [[ -e $REF ]]; 
 				then
-					echo ref file $REFDIR/$REF found &>> $LOGDIR/$START/$SM.run.log
+					echo ref file $REF found &>> $LOGDIR/$START/$SM.run.log
 				else
-					echo ref file $REFDIR/$REF not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo ref file $REF not found, exiting &>> $LOGDIR/$START/$SM.run.log
 					exit
 				fi
 
 	# check if index exists
-	if [[ -e $IDXDIR/$IDX ]]; 
+	if [[ -e $IDX ]]; 
 				then
-					echo index file $IDXDIR/$IDX found &>> $LOGDIR/$START/$SM.run.log
+					echo index file $IDX found &>> $LOGDIR/$START/$SM.run.log
 				else
-					echo index file $IDXDIR/$IDX not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo index file $IDX not found, exiting &>> $LOGDIR/$START/$SM.run.log
 					exit
 				fi
 	echo "\n\n"
@@ -151,11 +152,11 @@ echo "All index, ref and data files were found, starting RG alignment\n" &>> $LO
 # begin processing data
 for ROW in $(seq 1 $(wc -l < $SAMPLE_SHEET))
 do
-	read IDfl IDln PL LB SM PI R1 R2 D1 D2 REF REFDIR IDX IDXDIR FQDIR MAPDIR LOGDIR MEDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
+	read IDfl IDln LB SM R1 R2 D1 D2 REF IDX FQDIR MAPDIR LOGDIR MEDIR QUALDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
 	
 
     # state read group
-	RG="@RG\tID:$IDfl:$IDln\tPL:$PL\tLB:$LB\tSM:$SM\tPI:$PI"
+	RG="@RG\tID:$IDfl:$IDln\tLB:$LB\tSM:$SM"
 	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM.run.log
 
 
@@ -183,6 +184,14 @@ do
                 mkdir $MEDIR
         fi
 
+    if [ -d $QUALDIR/$SM ]
+        then
+                echo "QUALDIR found" &>> $LOGDIR/$START/$SM.run.log
+        else
+                echo "QUALDIR not found, making new one called $QUALDIR/$SM" &>> $LOGDIR/$START/$SM.run.log
+                mkdir -p $QUALDIR/$SM
+        fi
+
 	
 	# uncompress the files
 	if [[ $D2 = *".bam" ]]; 
@@ -204,10 +213,13 @@ do
 			exit
 		fi
 
+	# check quality with fastqc
+	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM.run.log
+	fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
 
 	echo begin mapping &>> $LOGDIR/$START/$SM.run.log
 	# perform mapping
-	(bwa mem -M -R $RG -t $THREADS $IDXDIR/$IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.bam) 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.bam) 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
 	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.bam ]
@@ -233,35 +245,23 @@ do
 		exit
 	fi
 
-	echo end sort, begin duplicate marking &>> $LOGDIR/$START/$SM.run.log
+	echo end sort &>> $LOGDIR/$START/$SM.run.log
 
-	gatk MarkDuplicates -I=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam -O=$MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.markedDup.bam -M=$MEDIR/$SM.$LB.$IDfl.$IDln.metrics -OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.markDup.log
-	# check for sorted bams and rm unsorted bams
-	# using recomended distance for patterend flowcells, default is 100.
-
-	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.markedDup.bam ]
-        then
-                echo duplicate marked bam found, removing $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam &>> $LOGDIR/$START/$SM.run.log
-                rm $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam
-        else
-                echo duplicate marked bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
-                exit
-        fi
-    echo end duplicate marking &>> $LOGDIR/$START/$SM.run.log
 done
 
 
 echo -e "read groups have all been processed, begin individual sample processing\n" &>> $LOGDIR/$START/$SM.run.log
 # here we merge files, this is done on sample ID, which is the first name ID
 
-for SAMPLE in $(awk '{print $5}' $SAMPLE_SHEET | uniq)
-do
+SAMPLE=$(awk '{print $3}' $SAMPLE_SHEET | uniq)
+
 	echo -e "\n" begin merge for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
-	samtools merge --threads $THREADS $MAPDIR/$SAMPLE.bam $MAPDIR/$SAMPLE.*.markedDup.bam &>> $LOGDIR/$START/$SM.run.log
+	
+	samtools merge --threads $THREADS $MAPDIR/$SAMPLE.bam $MAPDIR/$SAMPLE.*.bam &>> $LOGDIR/$START/$SM.run.log
 	if [ -s $MAPDIR/$SAMPLE.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM.run.log
-		rm $MAPDIR/$SAMPLE.*.markedDup.bam
+		rm $MAPDIR/$SAMPLE.*.sorted.bam
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
 		exit
@@ -282,7 +282,8 @@ do
         fi
     
     echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
-        gatk MarkDuplicates -I=$MAPDIR/$SAMPLE.sorted.bam -O=$MAPDIR/$SAMPLE.sorted.markedDup.bam -M=$MEDIR/$SAMPLE.metrics 2> $LOGDIR/$START/$SAMPLE.markDup.log
+
+java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SAMPLE.sorted.bam OUTPUT=$MAPDIR/$SAMPLE.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SAMPLE.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SAMPLE.markDup.log
 
         # check for sorted bams and rm unsorted bams
         if [ -s $MAPDIR/$SAMPLE.sorted.markedDup.bam ]
@@ -294,8 +295,14 @@ do
                 exit
         fi
     echo -e "\n" end duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
-done
+
+samtools index -@ $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam
+
+samtools stats --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam > $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
+plot-bamstats -p $QUALDIR/$SAMPLE/ $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
 
 echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+
 cat $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+
 echo done
