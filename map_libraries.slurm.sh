@@ -95,13 +95,13 @@ do
 	read IDfl IDln LB SM R1 R2 D1 D2 REF IDX FQDIR MAPDIR LOGDIR MEDIR QUALDIR <<< $(sed "${ROW}q;d" $SAMPLE_SHEET)
 
 	# create a log dir so everything has somewhere to go
-	if [ -d $LOGDIR/$START ]
+	if [ -d $LOGDIR/$START/$SM ]
         then	
-                echo "$LOGDIR/$START found" &>> $LOGDIR/$START/$SM.run.log
+                echo "$LOGDIR/$START/$SM found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                mkdir -p $LOGDIR/$START
-                touch $LOGDIR/$START/$SM.run.log
-                echo "LOGDIR not found, making new one called $LOGDIR/$START" &>> $LOGDIR/$START/$SM.run.log
+                mkdir -p $LOGDIR/$START/$SM
+                touch $LOGDIR/$START/$SM/$SM.run.log
+                echo "LOGDIR not found, making new one called $LOGDIR/$START/$SM" &>> $LOGDIR/$START/$SM/$SM.run.log
         fi
 
 
@@ -110,17 +110,17 @@ do
 		then
 			if [[ -e $D1/$D2 ]]; 
 				then
-					echo bam file $D2/$D1 found &>> $LOGDIR/$START/$SM.run.log
+					echo bam file $D2/$D1 found &>> $LOGDIR/$START/$SM/$SM.run.log
 				else
-					echo bam file $D2/$D1 not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo bam file $D2/$D1 not found, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 					exit
 				fi
 		else
 			if [[ -e $D1/$R1.gz && -e $D2/$R2.gz ]]; 
 				then
-					echo fastq files $D1/$R1.gz and $D2/$R2.gz found &>> $LOGDIR/$START/$SM.run.log
+					echo fastq files $D1/$R1.gz and $D2/$R2.gz found &>> $LOGDIR/$START/$SM/$SM.run.log
 				else
-					echo fastq files $D1/$R1.gz and $D2/$R2.gz found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo fastq files $D1/$R1.gz and $D2/$R2.gz found, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 					exit
 				fi
 	fi
@@ -128,24 +128,24 @@ do
 	# check if ref exists
 	if [[ -e $REF ]]; 
 				then
-					echo ref file $REF found &>> $LOGDIR/$START/$SM.run.log
+					echo ref file $REF found &>> $LOGDIR/$START/$SM/$SM.run.log
 				else
-					echo ref file $REF not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo ref file $REF not found, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 					exit
 				fi
 
 	# check if index exists
 	if [[ -e $IDX ]]; 
 				then
-					echo index file $IDX found &>> $LOGDIR/$START/$SM.run.log
+					echo index file $IDX found &>> $LOGDIR/$START/$SM/$SM.run.log
 				else
-					echo index file $IDX not found, exiting &>> $LOGDIR/$START/$SM.run.log
+					echo index file $IDX not found, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 					exit
 				fi
 	echo "\n\n"
 done
 
-echo "All index, ref and data files were found, starting RG alignment\n" &>> $LOGDIR/$START/$SM.run.log
+echo "All index, ref and data files were found, starting RG alignment\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
 
 
@@ -157,38 +157,38 @@ do
 
     # state read group
 	RG="@RG\tID:$IDfl:$IDln\tLB:$LB\tSM:$SM"
-	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM.run.log
+	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM/$SM.run.log
 
 
 	if [ -d $FQDIR ]
 		then
-        	echo "FQDIR found" &>> $LOGDIR/$START/$SM.run.log
+        	echo "FQDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
-			echo "FQDIR not found, making new one called $FQDIR" &>> $LOGDIR/$START/$SM.run.log
+			echo "FQDIR not found, making new one called $FQDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
 			mkdir $FQDIR	
 		fi
 
 	if [ -d $MAPDIR ]
         then
-                echo "MAPDIR found" &>> $LOGDIR/$START/$SM.run.log
+                echo "MAPDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "MAPDIR not found, making new one called $MAPDIR" &>> $LOGDIR/$START/$SM.run.log
+                echo "MAPDIR not found, making new one called $MAPDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
                 mkdir $MAPDIR
         fi
 
 	if [ -d $MEDIR ]
         then
-                echo "MEDIR found" &>> $LOGDIR/$START/$SM.run.log
+                echo "MEDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "MEDIR not found, making new one called $MEDIR" &>> $LOGDIR/$START/$SM.run.log
+                echo "MEDIR not found, making new one called $MEDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
                 mkdir $MEDIR
         fi
 
     if [ -d $QUALDIR/$SM ]
         then
-                echo "QUALDIR found" &>> $LOGDIR/$START/$SM.run.log
+                echo "QUALDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "QUALDIR not found, making new one called $QUALDIR/$SM" &>> $LOGDIR/$START/$SM.run.log
+                echo "QUALDIR not found, making new one called $QUALDIR/$SM" &>> $LOGDIR/$START/$SM/$SM.run.log
                 mkdir -p $QUALDIR/$SM
         fi
 
@@ -196,10 +196,10 @@ do
 	# uncompress the files
 	if [[ $D2 = *".bam" ]]; 
 		then
-			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM.run.log
-			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM.run.log
+			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM/$SM.run.log
+			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
-			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM.run.log
+			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM/$SM.run.log
 			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$R1
 			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$R2
 		fi
@@ -207,102 +207,102 @@ do
 	# check if file succesfully uncompressed
 	if [[ -s $FQDIR/$R1 && -s $FQDIR/$R2 ]]; 
 		then
-			echo uncompressed read pair files found &>> $LOGDIR/$START/$SM.run.log
+			echo uncompressed read pair files found &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
-			echo one or both uncompressed files are not found or are empty, exiting &>> $LOGDIR/$START/$SM.run.log
+			echo one or both uncompressed files are not found or are empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 			exit
 		fi
 
 	# check quality with fastqc
-	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM.run.log
+	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM/$SM.run.log
 	fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
 
-	echo begin mapping &>> $LOGDIR/$START/$SM.run.log
+	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 	# perform mapping
-	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.bam) 2> $LOGDIR/$START/$SM.$LB.$IDfl.$IDln.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.bam) 2> $LOGDIR/$START/$SM/$SM.$LB.$IDfl.$IDln.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
 	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.bam ]
 	then 
-		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM.run.log
+		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
 		rm -r $FQDIR/{$R1,$R2}
 	else
-		echo bam file not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
+		echo bam file not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
 	fi
 
-	echo end mapping, begin sort &>> $LOGDIR/$START/$SM.run.log
+	echo end mapping, begin sort &>> $LOGDIR/$START/$SM/$SM.run.log
 
 	# sort and mark optical duplicates
-	samtools sort --threads $THREADS -o $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM.run.log
+	samtools sort --threads $THREADS -o $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 
 	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam ]
 	then
-		echo sorted bam found, removing $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM.run.log
+		echo sorted bam found, removing $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 		rm $MAPDIR/$SM.$LB.$IDfl.$IDln.bam
 	else
-		echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
+		echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
 	fi
 
-	echo end sort &>> $LOGDIR/$START/$SM.run.log
+	echo end sort &>> $LOGDIR/$START/$SM/$SM.run.log
 
 done
 
 
-echo -e "read groups have all been processed, begin individual sample processing\n" &>> $LOGDIR/$START/$SM.run.log
+echo -e "read groups have all been processed, begin individual sample processing\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 # here we merge files, this is done on sample ID, which is the first name ID
 
 SAMPLE=$(awk '{print $3}' $SAMPLE_SHEET | uniq)
 
-	echo -e "\n" begin merge for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
+	echo -e "\n" begin merge for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 	
-	samtools merge --threads $THREADS $MAPDIR/$SAMPLE.bam $MAPDIR/$SAMPLE.*.bam &>> $LOGDIR/$START/$SM.run.log
+	samtools merge --threads $THREADS $MAPDIR/$SAMPLE.bam $MAPDIR/$SAMPLE.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 	if [ -s $MAPDIR/$SAMPLE.bam ]
 	then 
-		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM.run.log
+		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
 		rm $MAPDIR/$SAMPLE.*.sorted.bam
 	else
-		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
+		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
 	fi
 	
 
-	echo -e "\n" end merge for sample $SAMPLE, begin sort for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
+	echo -e "\n" end merge for sample $SAMPLE, begin sort for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 	# sort and mark PCR duplicates
-        samtools sort --threads $THREADS -o $MAPDIR/$SAMPLE.sorted.bam $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM.run.log
+        samtools sort --threads $THREADS -o $MAPDIR/$SAMPLE.sorted.bam $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 
         if [ -s $MAPDIR/$SAMPLE.sorted.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM.run.log
+                echo sorted bam found, removing $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM/$SM.run.log
                 rm $MAPDIR/$SAMPLE.bam
         else
-                echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
+                echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
         fi
     
-    echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
+    echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SAMPLE.sorted.bam OUTPUT=$MAPDIR/$SAMPLE.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SAMPLE.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SAMPLE.markDup.log
+java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SAMPLE.sorted.bam OUTPUT=$MAPDIR/$SAMPLE.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SAMPLE.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SAMPLE.markDup.log
 
         # check for sorted bams and rm unsorted bams
         if [ -s $MAPDIR/$SAMPLE.sorted.markedDup.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SAMPLE.sorted.bam &>> $LOGDIR/$START/$SM.run.log
+                echo sorted bam found, removing $MAPDIR/$SAMPLE.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
                 rm $MAPDIR/$SAMPLE.sorted.bam
         else
-                echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
+                echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
         fi
-    echo -e "\n" end duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
+    echo -e "\n" end duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
 samtools index -@ $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam
 
 samtools stats --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam > $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
 plot-bamstats -p $QUALDIR/$SAMPLE/ $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
 
-echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
 
-cat $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+cat $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
 
 echo done
