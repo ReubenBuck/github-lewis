@@ -51,27 +51,25 @@
 # MEDIR: metrics file dir
 # QUALDIR: directory for quality metrics
 
-
-# START=$(date +%g%m%d%H%M%S) sbatch --array=$(ls ./*sample_sheet.txt) map_libraries.sh
-
-# START=$(date +%g%m%d%H%M%S) LIST=($(ls samp_sheet*txt )) sbatch --array=0-$(($(ls samp_sheet_*txt | wc -l ) - 1)) map_libraries.slurm.sh
+# START=$(date +%g%m%d%H%M%S) LIST=<samp_sheet_paths> sbatch --array=1-$(wc -l <samp_sheet_paths> | cut -d " " -f 1) map_libraries.slurm.sh
 #-------------------------------------------------------------------------------
 
 module load bwa/bwa-0.7.17
 module load samtools/samtools-1.7
 module load pigz/pigz-2.4
-module load gatk/gatk-4.0.1.1
 module load fastqc
+module load picard-tools/picard-tools-2.1.1
+module load java/openjdk/java-1.8.0-openjdk
+
 
 THREADS=2
 
 
 echo $SLURM_ARRAY_TASK_ID
 
-SAMPLE_SHEET=${LIST[$SLURM_ARRAY_TASK_ID]}
+SAMPLE_SHEET=$(sed -n "${SLURM_ARRAY_TASK_ID}p" $LIST)
 
-SAMPLE_SHEET=${SAMPLE_SHEET//'('}
-SAMPLE_SHEET=${SAMPLE_SHEET//')'}
+echo $SAMPLE_SHEET
 
 #START=$(date +%g%m%d%H%M%S)
 
@@ -284,7 +282,8 @@ SAMPLE=$(awk '{print $3}' $SAMPLE_SHEET | uniq)
         fi
     
     echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
-        gatk MarkDuplicates -I=$MAPDIR/$SAMPLE.sorted.bam -O=$MAPDIR/$SAMPLE.sorted.markedDup.bam -M=$MEDIR/$SAMPLE.metrics -OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SAMPLE.markDup.log
+
+java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SAMPLE.sorted.bam OUTPUT=$MAPDIR/$SAMPLE.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SAMPLE.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SAMPLE.markDup.log
 
         # check for sorted bams and rm unsorted bams
         if [ -s $MAPDIR/$SAMPLE.sorted.markedDup.bam ]
@@ -303,5 +302,7 @@ samtools stats --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam > $QUALDI
 plot-bamstats -p $QUALDIR/$SAMPLE/ $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
 
 echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+
 cat $SAMPLE_SHEET &>> $LOGDIR/$START/$SM.run.log
+
 echo done
