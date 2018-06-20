@@ -3,12 +3,12 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition Lewis  # for jobs < 2hrs try 'General'
+#SBATCH --partition General  # for jobs < 2hrs try 'General'
 #SBATCH --nodes=1
 #SBATCH --ntasks=1  # used for MPI codes, otherwise leave at '1'
-#SBATCH --cpus-per-task=20 # cores per task
+#SBATCH --cpus-per-task=2 # cores per task
 #SBATCH --mem-per-cpu=8G  # memory per core (default is 1GB/core)
-#SBATCH --time 2-00:00  # days-hours:minutes
+#SBATCH --time 0-00:10  # days-hours:minutes
 #SBATCH --qos=normal
 #SBATCH --account=general  # investors will replace this with their account name
 #
@@ -54,6 +54,7 @@
 
 # START=$(date +%g%m%d%H%M%S) sbatch --array=$(ls ./*sample_sheet.txt) map_libraries.sh
 
+# START=$(date +%g%m%d%H%M%S) LIST=($(ls samp_sheet*txt )) sbatch --array=0-$(($(ls samp_sheet_*txt | wc -l ) - 1)) map_libraries.slurm.sh
 #-------------------------------------------------------------------------------
 
 module load bwa/bwa-0.7.17
@@ -62,9 +63,15 @@ module load pigz/pigz-2.4
 module load gatk/gatk-4.0.1.1
 module load fastqc
 
-THREADS=20
+THREADS=2
 
-SAMPLE_SHEET=$SLURM_ARRAY_TASK_ID
+
+echo $SLURM_ARRAY_TASK_ID
+
+SAMPLE_SHEET=${LIST[$SLURM_ARRAY_TASK_ID]}
+
+SAMPLE_SHEET=${SAMPLE_SHEET//'('}
+SAMPLE_SHEET=${SAMPLE_SHEET//')'}
 
 #START=$(date +%g%m%d%H%M%S)
 
@@ -118,9 +125,10 @@ do
 					echo fastq files $D1/$R1.gz and $D2/$R2.gz found, exiting &>> $LOGDIR/$START/$SM.run.log
 					exit
 				fi
+	fi
 
 	# check if ref exists
-	if [[ -e $REFDIR/$REF ]]; 
+	if [[ -e $REF ]]; 
 				then
 					echo ref file $REF found &>> $LOGDIR/$START/$SM.run.log
 				else
@@ -129,7 +137,7 @@ do
 				fi
 
 	# check if index exists
-	if [[ -e $IDXDIR/$IDX ]]; 
+	if [[ -e $IDX ]]; 
 				then
 					echo index file $IDX found &>> $LOGDIR/$START/$SM.run.log
 				else
@@ -247,7 +255,7 @@ done
 echo -e "read groups have all been processed, begin individual sample processing\n" &>> $LOGDIR/$START/$SM.run.log
 # here we merge files, this is done on sample ID, which is the first name ID
 
-SAMPLE=$(awk '{print $5}' $SAMPLE_SHEET | uniq)
+SAMPLE=$(awk '{print $3}' $SAMPLE_SHEET | uniq)
 
 	echo -e "\n" begin merge for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
 	
@@ -255,7 +263,7 @@ SAMPLE=$(awk '{print $5}' $SAMPLE_SHEET | uniq)
 	if [ -s $MAPDIR/$SAMPLE.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM.run.log
-		rm $MAPDIR/$SAMPLE.*.markedDup.bam
+		rm $MAPDIR/$SAMPLE.*.sorted.bam
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM.run.log
 		exit
@@ -289,7 +297,7 @@ SAMPLE=$(awk '{print $5}' $SAMPLE_SHEET | uniq)
         fi
     echo -e "\n" end duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM.run.log
 
-samtools index --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam
+samtools index -@ $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam
 
 samtools stats --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam > $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
 plot-bamstats -p $QUALDIR/$SAMPLE/ $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
