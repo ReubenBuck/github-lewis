@@ -229,21 +229,7 @@ do
 		exit
 	fi
 
-	echo end mapping, begin sort &>> $LOGDIR/$START/$SM/$SM.run.log
-
-	# sort and mark optical duplicates
-	samtools sort --threads $THREADS -o $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-
-	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.sorted.bam ]
-	then
-		echo sorted bam found, removing $MAPDIR/$SM.$LB.$IDfl.$IDln.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-		rm $MAPDIR/$SM.$LB.$IDfl.$IDln.bam
-	else
-		echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
-		exit
-	fi
-
-	echo end sort &>> $LOGDIR/$START/$SM/$SM.run.log
+	echo end mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 
 done
 
@@ -251,53 +237,52 @@ done
 echo -e "read groups have all been processed, begin individual sample processing\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 # here we merge files, this is done on sample ID, which is the first name ID
 
-SAMPLE=$(awk '{print $3}' $SAMPLE_SHEET | uniq)
 
-	echo -e "\n" begin merge for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
+	echo -e "\n" begin merge for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 	
-	samtools merge --threads $THREADS $MAPDIR/$SAMPLE.bam $MAPDIR/$SAMPLE.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-	if [ -s $MAPDIR/$SAMPLE.bam ]
+	samtools merge --threads $THREADS $MAPDIR/$SM.bam $MAPDIR/$SM.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+	if [ -s $MAPDIR/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
-		rm $MAPDIR/$SAMPLE.*.sorted.bam
+		rm $MAPDIR/$SM.*.sorted.bam
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
 	fi
 	
 
-	echo -e "\n" end merge for sample $SAMPLE, begin sort for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
+	echo -e "\n" end merge for sample $SM, begin sort for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 	# sort and mark PCR duplicates
-        samtools sort --threads $THREADS -o $MAPDIR/$SAMPLE.sorted.bam $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+        samtools sort --threads $THREADS -o $MAPDIR/$SM.sorted.bam $MAPDIR/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 
-        if [ -s $MAPDIR/$SAMPLE.sorted.bam ]
+        if [ -s $MAPDIR/$SM.sorted.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SAMPLE.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-                rm $MAPDIR/$SAMPLE.bam
+                echo sorted bam found, removing $MAPDIR/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+                rm $MAPDIR/$SM.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
         fi
     
-    echo -e "\n" end sort for sample $SAMPLE, begin duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
+    echo -e "\n" end sort for sample $SM, begin duplicate marking for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SAMPLE.sorted.bam OUTPUT=$MAPDIR/$SAMPLE.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SAMPLE.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SAMPLE.markDup.log
+java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SM.sorted.bam OUTPUT=$MAPDIR/$SM.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SM.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SM.markDup.log
 
         # check for sorted bams and rm unsorted bams
-        if [ -s $MAPDIR/$SAMPLE.sorted.markedDup.bam ]
+        if [ -s $MAPDIR/$SM.sorted.markedDup.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SAMPLE.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-                rm $MAPDIR/$SAMPLE.sorted.bam
+                echo sorted bam found, removing $MAPDIR/$SM.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+                rm $MAPDIR/$SM.sorted.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
         fi
-    echo -e "\n" end duplicate marking for sample $SAMPLE "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
+    echo -e "\n" end duplicate marking for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-samtools index -@ $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam
+samtools index -@ $THREADS $MAPDIR/$SM.sorted.markedDup.bam
 
-samtools stats --threads $THREADS $MAPDIR/$SAMPLE.sorted.markedDup.bam > $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
-plot-bamstats -p $QUALDIR/$SAMPLE/ $QUALDIR/$SAMPLE/$SAMPLE.sorted.markedDup.bam.bc
+samtools stats --threads $THREADS $MAPDIR/$SM.sorted.markedDup.bam > $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
+plot-bamstats -p $QUALDIR/$SM/ $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
 
 echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
 
