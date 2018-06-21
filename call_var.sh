@@ -30,12 +30,12 @@ REF=/home/buckleyrm/storage.lyonslab/cat_ref/Felis_catus_9.0.fa
 
 module load java/openjdk/java-1.8.0-openjdk
 module load gatk/gatk-3.8
-module load picard-tools/picard-tools-2.1.1
+#module load picard-tools/picard-tools-2.1.1
 
 # select cat to run on single node
-#LIST=($(ls -1 -X -r $BAM_DIR))
-#CAT_BAM=${LIST[$SLURM_ARRAY_TASK_ID]}
-CAT_BAM=Fcat-22055-Chediak.sorted.markedDup.bam
+LIST=($(ls -1 -X -r $BAM_DIR))
+CAT_BAM=${LIST[$SLURM_ARRAY_TASK_ID]}
+#CAT_BAM=Fcat-22055-Chediak.sorted.markedDup.bam
 
 echo ""
 echo "Sample being analysed is $CAT_BAM"

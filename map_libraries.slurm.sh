@@ -217,10 +217,10 @@ do
 
 	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 	# perform mapping
-	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.bam) 2> $LOGDIR/$START/$SM/$SM.$LB.$IDfl.$IDln.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$LB.$IDfl.$IDln.$ROW.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
-	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.bam ]
+	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.$ROW.bam ]
 	then 
 		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
 		rm -r $FQDIR/{$R1,$R2}
