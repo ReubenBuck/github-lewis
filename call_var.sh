@@ -26,14 +26,14 @@ REF=/home/buckleyrm/storage.lyonslab/cat_ref/Felis_catus_9.0.fa
 #----------------------------------------------------------
 
 #invoke with 
-## BAM_DIR=/home/buckleyrm/storage.lyonslab/users/yuyos/FSEC/bams sbatch --array=$(ls $BAM_DIR) call_var.sh
+## sbatch --array=1-$(ls <bam dir> | grep "bam$" | wc -l | cut -d " " -f 1 ) call_var.sh
 
 module load java/openjdk/java-1.8.0-openjdk
 module load gatk/gatk-3.8
 #module load picard-tools/picard-tools-2.1.1
 
 # select cat to run on single node
-LIST=($(ls -1 -X -r $BAM_DIR))
+LIST=($(ls $BAM_DIR | grep "bam$"))
 CAT_BAM=${LIST[$SLURM_ARRAY_TASK_ID]}
 #CAT_BAM=Fcat-22055-Chediak.sorted.markedDup.bam
 
@@ -50,6 +50,5 @@ java -Djava.io.tmpdir=/tmp -XX:ParallelGCThreads=2 -jar /cluster/software/gatk/g
 -T HaplotypeCaller \
 -R $REF \
 -I $BAM_DIR/$CAT_BAM \
---pcr_indel_model NONE \
 -o $GVCF_DIR/$CAT_BAM.g.vcf.gz
 
