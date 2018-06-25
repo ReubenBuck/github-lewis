@@ -242,8 +242,8 @@ echo -e "read groups have all been processed, begin individual sample processing
 
 
 	echo -e "\n" begin merge for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
-	
-	samtools merge --threads $THREADS $MAPDIR/$SM.bam $MAPDIR/$SM.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+
+	samtools merge -c --threads $THREADS $MAPDIR/$SM.bam $MAPDIR/$SM.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 	if [ -s $MAPDIR/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
