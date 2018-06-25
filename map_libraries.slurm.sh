@@ -3,7 +3,7 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition Lewis  # for jobs < 2hrs try 'General'
+#SBATCH --partition BioCompute  # for jobs < 2hrs try 'General'
 #SBATCH -N1
 #SBATCH -n20 # cores 
 #SBATCH --mem 100G  # memory 
@@ -195,11 +195,14 @@ do
 	if [[ $D2 = *".bam" ]]; 
 		then
 			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM/$SM.run.log
-			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			samtools view -h $D1/$D2 | head -n 105000 | samtools view -Sb - > $FQDIR/tmp.$D2
+			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $FQDIR/tmp.$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			rm $FQDIR/tmp.$D2
+			#samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
 			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM/$SM.run.log
-			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$R1
-			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$R2
+			pigz -cd -p $THREADS $D1/$R1.gz | head -n 400000 > $FQDIR/$R1
+			pigz -cd -p $THREADS $D2/$R2.gz | head -n 400000 > $FQDIR/$R2
 		fi
 
 	# check if file succesfully uncompressed
@@ -244,7 +247,7 @@ echo -e "read groups have all been processed, begin individual sample processing
 	if [ -s $MAPDIR/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
-		rm $MAPDIR/$SM.*.sorted.bam
+	#	rm $MAPDIR/$SM.*.bam
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
@@ -258,7 +261,7 @@ echo -e "read groups have all been processed, begin individual sample processing
         if [ -s $MAPDIR/$SM.sorted.bam ]
         then
                 echo sorted bam found, removing $MAPDIR/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-                rm $MAPDIR/$SM.bam
+         #       rm $MAPDIR/$SM.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
@@ -272,7 +275,7 @@ java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDupli
         if [ -s $MAPDIR/$SM.sorted.markedDup.bam ]
         then
                 echo sorted bam found, removing $MAPDIR/$SM.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-                rm $MAPDIR/$SM.sorted.bam
+         #       rm $MAPDIR/$SM.sorted.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
