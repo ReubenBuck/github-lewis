@@ -3,11 +3,11 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition BioCompute  # for jobs < 2hrs try 'General'
+#SBATCH --partition Interactive  # for jobs < 2hrs try 'General'
 #SBATCH -N1
-#SBATCH -n20 # cores 
-#SBATCH --mem 100G  # memory 
-#SBATCH -t 2-00:00  # days-hours:minutes
+#SBATCH -n2 # cores 
+#SBATCH --mem 10G  # memory 
+#SBATCH -t 0-00:20  # days-hours:minutes
 #SBATCH --account=general  # investors will replace this with their account name
 #
 ## labels and outputs
@@ -154,7 +154,7 @@ do
 	
 
     # state read group
-	RG="@RG\tID:$IDfl:$IDln\tLB:$LB\tSM:$SM"
+	RG="@RG\tID:$LB:$IDfl:$IDln\tLB:$LB\tSM:$SM"
 	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM/$SM.run.log
 
 
@@ -220,13 +220,13 @@ do
 
 	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 	# perform mapping
-	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$LB.$IDfl.$IDln.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$LB.$IDfl.$IDln.$ROW.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
-	if [ -s $MAPDIR/$SM.$LB.$IDfl.$IDln.$ROW.bam ]
+	if [ -s $MAPDIR/$SM.$ROW.bam ]
 	then 
 		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
-		rm -r $FQDIR/{$R1,$R2}
+		#rm -r $FQDIR/{$R1,$R2}
 	else
 		echo bam file not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
@@ -243,11 +243,11 @@ echo -e "read groups have all been processed, begin individual sample processing
 
 	echo -e "\n" begin merge for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-	samtools merge -c --threads $THREADS $MAPDIR/$SM.bam $MAPDIR/$SM.*.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+	samtools merge -c -f --threads $THREADS $MAPDIR/$SM.bam $(eval echo $MAPDIR/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam) &>> $LOGDIR/$START/$SM/$SM.run.log
 	if [ -s $MAPDIR/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
-	#	rm $MAPDIR/$SM.*.bam
+	#	rm $(eval echo $MAPDIR/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam)
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
