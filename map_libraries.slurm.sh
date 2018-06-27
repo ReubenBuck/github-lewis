@@ -5,7 +5,7 @@
 ## resources
 #SBATCH --partition Interactive  # for jobs < 2hrs try 'General'
 #SBATCH -N1
-#SBATCH -n2 # cores 
+#SBATCH -n3 # cores 
 #SBATCH --mem 10G  # memory 
 #SBATCH -t 0-00:20  # days-hours:minutes
 #SBATCH --account=general  # investors will replace this with their account name
@@ -58,9 +58,9 @@ module load pigz/pigz-2.4
 module load fastqc
 module load picard-tools/picard-tools-2.1.1
 module load java/openjdk/java-1.8.0-openjdk
+module load gatk/gatk-3.8
 
-
-THREADS=20
+THREADS=3
 
 
 echo $SLURM_ARRAY_TASK_ID
@@ -140,7 +140,8 @@ do
 					echo index file $IDX not found, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 					exit
 				fi
-	echo "\n\n"
+
+	echo '\n\n' &>> $LOGDIR/$START/$SM/$SM.run.log
 done
 
 echo "All index, ref and data files were found, starting RG alignment\n" &>> $LOGDIR/$START/$SM/$SM.run.log
@@ -166,20 +167,20 @@ do
 			mkdir $FQDIR	
 		fi
 
-	if [ -d $MAPDIR ]
+	if [ -d $MAPDIR/$SM ]
         then
                 echo "MAPDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "MAPDIR not found, making new one called $MAPDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
-                mkdir $MAPDIR
+                echo "MAPDIR not found, making new one called $MAPDIR/$SM" &>> $LOGDIR/$START/$SM/$SM.run.log
+                mkdir -p $MAPDIR/$SM
         fi
 
-	if [ -d $MEDIR ]
+	if [ -d $MEDIR/$SM ]
         then
                 echo "MEDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "MEDIR not found, making new one called $MEDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
-                mkdir $MEDIR
+                echo "MEDIR not found, making new one called $MEDIR/$SM" &>> $LOGDIR/$START/$SM/$SM.run.log
+                mkdir -p $MEDIR/$SM
         fi
 
     if [ -d $QUALDIR/$SM ]
@@ -216,14 +217,14 @@ do
 
 	# check quality with fastqc
 	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM/$SM.run.log
-	fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
+	#fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
 
 	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 	# perform mapping
-	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
-	if [ -s $MAPDIR/$SM.$ROW.bam ]
+	if [ -s $MAPDIR/$SM/$SM.$ROW.bam ]
 	then 
 		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
 		#rm -r $FQDIR/{$R1,$R2}
@@ -243,11 +244,11 @@ echo -e "read groups have all been processed, begin individual sample processing
 
 	echo -e "\n" begin merge for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-	samtools merge -c -f --threads $THREADS $MAPDIR/$SM.bam $(eval echo $MAPDIR/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam) &>> $LOGDIR/$START/$SM/$SM.run.log
-	if [ -s $MAPDIR/$SM.bam ]
+	samtools merge -c -f --threads $THREADS $MAPDIR/$SM/$SM.bam $(eval echo $MAPDIR/$SM/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam) &>> $LOGDIR/$START/$SM/$SM.run.log
+	if [ -s $MAPDIR/$SM/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
-	#	rm $(eval echo $MAPDIR/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam)
+	#	rm $(eval echo $MAPDIR/$SM/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam)
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
@@ -256,12 +257,12 @@ echo -e "read groups have all been processed, begin individual sample processing
 
 	echo -e "\n" end merge for sample $SM, begin sort for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 	# sort and mark PCR duplicates
-        samtools sort --threads $THREADS -o $MAPDIR/$SM.sorted.bam $MAPDIR/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+        samtools sort --threads $THREADS -o $MAPDIR/$SM/$SM.sorted.bam $MAPDIR/$SM/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
 
-        if [ -s $MAPDIR/$SM.sorted.bam ]
+        if [ -s $MAPDIR/$SM/$SM.sorted.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-         #       rm $MAPDIR/$SM.bam
+                echo sorted bam found, removing $MAPDIR/$SM/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+         #       rm $MAPDIR/$SM/$SM.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
@@ -269,25 +270,54 @@ echo -e "read groups have all been processed, begin individual sample processing
     
     echo -e "\n" end sort for sample $SM, begin duplicate marking for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SM.sorted.bam OUTPUT=$MAPDIR/$SM.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SM.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SM.markDup.log
+java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SM/$SM.sorted.bam OUTPUT=$MAPDIR/$SM/$SM.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SM/$SM.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SM.markDup.log
 
         # check for sorted bams and rm unsorted bams
-        if [ -s $MAPDIR/$SM.sorted.markedDup.bam ]
+        if [ -s $MAPDIR/$SM/$SM.sorted.markedDup.bam ]
         then
-                echo sorted bam found, removing $MAPDIR/$SM.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-         #       rm $MAPDIR/$SM.sorted.bam
+                echo sorted bam found, removing $MAPDIR/$SM/$SM.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+         #       rm $MAPDIR/$SM/$SM.sorted.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
         fi
     echo -e "\n" end duplicate marking for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-samtools index -@ $THREADS $MAPDIR/$SM.sorted.markedDup.bam
+samtools index -@ $THREADS $MAPDIR/$SM/$SM.sorted.markedDup.bam
 
-samtools stats --threads $THREADS $MAPDIR/$SM.sorted.markedDup.bam > $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
+samtools stats --threads $THREADS $MAPDIR/$SM/$SM.sorted.markedDup.bam > $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
 plot-bamstats -p $QUALDIR/$SM/ $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
 
 echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
+
+echo begin indel realignment, generate targets &>> $LOGDIR/$START/$SM/$SM.run.log
+
+java -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -nt $THREADS -T RealignerTargetCreator -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -o $MEDIR/$SM/$SM.indelTarget.intervals 2> $LOGDIR/$START/$SM/$SM.indelTargetCreator.log
+
+echo targets generated, begin realignment &>> $LOGDIR/$START/$SM/$SM.run.log
+
+
+# run indel realignment for avialbale threads only
+
+N=$(expr $THREADS - 1)
+
+for TARGET in $(ls ${REF%/*}/target_loci/); do
+	
+	(
+	echo relignment of ${TARGET%\.intervals} begining at $(date) &>> $LOGDIR/$START/$SM/$SM.run.log
+	java -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -T IndelRealigner -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -targetIntervals $MEDIR/$SM/$SM.indelTarget.intervals -L ${REF%/*}/target_loci/$TARGET -o $MAPDIR/$SM/$SM.${TARGET%\.intervals}.sorted.markedDup.realigned.bam 2> $LOGDIR/$START/$SM/$SM.${TARGET%\.intervals}.realign.log 
+	) &
+
+	if [[ $(jobs -r -p | wc -l) -gt $N ]]; then
+		wait
+	fi
+
+done
+
+wait
+
+
+
 
 cat $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
 
