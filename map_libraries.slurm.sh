@@ -3,16 +3,16 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition Interactive  # for jobs < 2hrs try 'General'
+#SBATCH --partition BioCompute  # for jobs < 2hrs try 'General'
 #SBATCH -N1
-#SBATCH -n3 # cores 
-#SBATCH --mem 10G  # memory 
-#SBATCH -t 0-00:20  # days-hours:minutes
+#SBATCH -n28 # cores 
+#SBATCH --mem 300G  # memory 
+#SBATCH -t 2-00:00  # days-hours:minutes
 #SBATCH --account=general  # investors will replace this with their account name
 #
 ## labels and outputs
-#SBATCH --job-name=map_lib
-#SBATCH --output=results-%j.out  # %j is the unique jobID
+#SBATCH --job-name=map_lib_bio
+#SBATCH --output=map_results-%j.out  # %j is the unique jobID
 #
 ## notifications
 #SBATCH --mail-user=buckleyrm@missouri.edu  # email address for notifications
@@ -49,7 +49,7 @@
 # MEDIR: metrics file dir
 # QUALDIR: directory for quality metrics
 
-# START=$(date +%g%m%d%H%M%S) LIST=<samp_sheet_paths> sbatch --array=1-$(wc -l <samp_sheet_paths> | cut -d " " -f 1) map_libraries.slurm.sh
+# START=$(date +%g-%m-%d_%H.%M.%S) LIST=<samp_sheet_paths> sbatch --array=1-$(wc -l <samp_sheet_paths> | cut -d " " -f 1) map_libraries.slurm.sh
 #-------------------------------------------------------------------------------
 
 module load bwa/bwa-0.7.17
@@ -60,7 +60,7 @@ module load picard-tools/picard-tools-2.1.1
 module load java/openjdk/java-1.8.0-openjdk
 module load gatk/gatk-3.8
 
-THREADS=3
+THREADS=28
 
 
 echo $SLURM_ARRAY_TASK_ID
@@ -179,8 +179,9 @@ do
         then
                 echo "MEDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
         else
-                echo "MEDIR not found, making new one called $MEDIR/$SM" &>> $LOGDIR/$START/$SM/$SM.run.log
+                echo "MEDIR not found, making new one called $MEDIR/$SM" with tmp dir &>> $LOGDIR/$START/$SM/$SM.run.log
                 mkdir -p $MEDIR/$SM
+		mkdir -p $MEDIR/$SM/tmp
         fi
 
     if [ -d $QUALDIR/$SM ]
@@ -196,14 +197,16 @@ do
 	if [[ $D2 = *".bam" ]]; 
 		then
 			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM/$SM.run.log
-			samtools view -h $D1/$D2 | head -n 105000 | samtools view -Sb - > $FQDIR/tmp.$D2
-			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $FQDIR/tmp.$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
-			rm $FQDIR/tmp.$D2
-			#samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			#samtools view -h $D1/$D2 | head -n 105000 | samtools view -Sb - > $FQDIR/tmp.$D2
+			#samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $FQDIR/tmp.$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			#rm $FQDIR/tmp.$D2
+			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
 			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM/$SM.run.log
-			pigz -cd -p $THREADS $D1/$R1.gz | head -n 400000 > $FQDIR/$R1
-			pigz -cd -p $THREADS $D2/$R2.gz | head -n 400000 > $FQDIR/$R2
+			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$R1
+			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$R2
+			#pigz -cd -p $THREADS $D1/$R1.gz | head -n 400000 > $FQDIR/$R1
+                        #pigz -cd -p $THREADS $D2/$R2.gz | head -n 400000 > $FQDIR/$R2
 		fi
 
 	# check if file succesfully uncompressed
@@ -217,10 +220,10 @@ do
 
 	# check quality with fastqc
 	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM/$SM.run.log
-	#fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
+	fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
 
 	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
-	# perform mapping
+	# perfo#rm mapping
 	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
@@ -248,7 +251,7 @@ echo -e "read groups have all been processed, begin individual sample processing
 	if [ -s $MAPDIR/$SM/$SM.bam ]
 	then 
 		echo merged bam found, removing non-merged bams &>> $LOGDIR/$START/$SM/$SM.run.log
-	#	rm $(eval echo $MAPDIR/$SM/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam)
+		#rm $(eval echo $MAPDIR/$SM/$SM.{1..$(wc -l $SAMPLE_SHEET | cut -d " " -f 1)}.bam)
 	else
 		echo merged bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
@@ -262,7 +265,7 @@ echo -e "read groups have all been processed, begin individual sample processing
         if [ -s $MAPDIR/$SM/$SM.sorted.bam ]
         then
                 echo sorted bam found, removing $MAPDIR/$SM/$SM.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-         #       rm $MAPDIR/$SM/$SM.bam
+                #rm $MAPDIR/$SM/$SM.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
@@ -270,13 +273,13 @@ echo -e "read groups have all been processed, begin individual sample processing
     
     echo -e "\n" end sort for sample $SM, begin duplicate marking for sample $SM "\n" &>> $LOGDIR/$START/$SM/$SM.run.log
 
-java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates INPUT=$MAPDIR/$SM/$SM.sorted.bam OUTPUT=$MAPDIR/$SM/$SM.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SM/$SM.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SM.markDup.log
+java -Djava.io.tmpdir=$MEDIR/$SM/tmp -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDuplicates TMP_DIR=$MEDIR/$SM/tmp INPUT=$MAPDIR/$SM/$SM.sorted.bam OUTPUT=$MAPDIR/$SM/$SM.sorted.markedDup.bam METRICS_FILE=$MEDIR/$SM/$SM.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=2500 2> $LOGDIR/$START/$SM/$SM.markDup.log
 
-        # check for sorted bams and rm unsorted bams
+        # check for sorted bams and #rm unsorted bams
         if [ -s $MAPDIR/$SM/$SM.sorted.markedDup.bam ]
         then
                 echo sorted bam found, removing $MAPDIR/$SM/$SM.sorted.bam &>> $LOGDIR/$START/$SM/$SM.run.log
-         #       rm $MAPDIR/$SM/$SM.sorted.bam
+                #rm $MAPDIR/$SM/$SM.sorted.bam
         else
                 echo sorted bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
                 exit
@@ -286,13 +289,14 @@ java -jar /cluster/software/picard-tools/picard-tools-2.1.1/picard.jar MarkDupli
 samtools index -@ $THREADS $MAPDIR/$SM/$SM.sorted.markedDup.bam
 
 samtools stats --threads $THREADS $MAPDIR/$SM/$SM.sorted.markedDup.bam > $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
-plot-bamstats -p $QUALDIR/$SM/ $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
+mkdir $QUALDIR/$SM/markDupQualPlot
+plot-bamstats -p $QUALDIR/$SM/markDupQualPlot/$SM.markDup $QUALDIR/$SM/$SM.sorted.markedDup.bam.bc
 
 echo mapping completed for sample sheet: $SAMPLE_SHEET &>> $LOGDIR/$START/$SM/$SM.run.log
 
 echo begin indel realignment, generate targets &>> $LOGDIR/$START/$SM/$SM.run.log
 
-java -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -nt $THREADS -T RealignerTargetCreator -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -o $MEDIR/$SM/$SM.indelTarget.intervals 2> $LOGDIR/$START/$SM/$SM.indelTargetCreator.log
+java -Djava.io.tmpdir=$MEDIR/$SM/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -nt $THREADS -T RealignerTargetCreator -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -o $MEDIR/$SM/$SM.indelTarget.intervals 2> $LOGDIR/$START/$SM/$SM.indelTargetCreator.log
 
 echo targets generated, begin realignment &>> $LOGDIR/$START/$SM/$SM.run.log
 
@@ -300,22 +304,76 @@ echo targets generated, begin realignment &>> $LOGDIR/$START/$SM/$SM.run.log
 # run indel realignment for avialbale threads only
 
 N=$(expr $THREADS - 1)
-
 for TARGET in $(ls ${REF%/*}/target_loci/); do
-	
 	(
-	echo relignment of ${TARGET%\.intervals} begining at $(date) &>> $LOGDIR/$START/$SM/$SM.run.log
-	java -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -T IndelRealigner -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -targetIntervals $MEDIR/$SM/$SM.indelTarget.intervals -L ${REF%/*}/target_loci/$TARGET -o $MAPDIR/$SM/$SM.${TARGET%\.intervals}.sorted.markedDup.realigned.bam 2> $LOGDIR/$START/$SM/$SM.${TARGET%\.intervals}.realign.log 
+	sleep $((RANDOM % 10))
+	echo begin realignment for ${TARGET%\.intervals} at $(date) &>> $LOGDIR/$START/$SM/$SM.run.log
+	java -Djava.io.tmpdir=$MEDIR/$SM/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -T IndelRealigner -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -targetIntervals $MEDIR/$SM/$SM.indelTarget.intervals -L ${REF%/*}/target_loci/$TARGET -o $MAPDIR/$SM/$SM.${TARGET%\.intervals}.sorted.markedDup.realigned.bam 2> $LOGDIR/$START/$SM/$SM.${TARGET%\.intervals}.realign.log 
 	) &
 
+	# will make sure that we do not open up more threads then there are available
 	if [[ $(jobs -r -p | wc -l) -gt $N ]]; then
 		wait
 	fi
 
 done
 
+# wait until all indels have been realigned
 wait
 
+# check if all target files got realigned
+
+for TARGET in $(ls ${REF%/*}/target_loci/); do
+        if [ -s $MAPDIR/$SM/$SM.${TARGET%\.intervals}.sorted.markedDup.realigned.bam ]
+                then
+                        echo realigned bam for ${TARGET%\.intervals} found, continuing &>> $LOGDIR/$START/$SM/$SM.run.log
+                else
+                        echo realigned bam for ${TARGET%\.intervals} not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
+                        exit
+                fi
+done
+
+echo '\nall targets were realigned for $SM at $(date), removing non relaigned bams and concatenating\n' &>> $LOGDIR/$START/$SM/$SM.run.log
+
+#rm $MAPDIR/$SM/$SM.sorted.markedDup.bam $MAPDIR/$SM/$SM.sorted.markedDup.bam.bai
+
+# is it a good idea to merge at this stage?, yes since first pass of score reclibration requires whole genome
+samtools cat -o $MAPDIR/$SM/$SM.realign.bam $(ls ${REF%/*}/target_loci/ | sed "s|^|$MAPDIR/$SM/$SM.|g" | sed "s/.intervals/.sorted.markedDup.realigned.bam/g")
+
+# remove all of the old files
+if [ -s $MAPDIR/$SM/$SM.realign.bam ]
+	then
+        	echo concatenated realigned bam for $SM found, remove target files &>> $LOGDIR/$START/$SM/$SM.run.log
+		#rm $(ls ${REF%/*}/target_loci/ | sed "s|^|$MAPDIR/$SM/$SM.|g" | sed "s/.intervals/.sorted.markedDup.realigned.bam/g")
+		#rm $(ls ${REF%/*}/target_loci/ | sed "s|^|$MAPDIR/$SM/$SM.|g" | sed "s/.intervals/.sorted.markedDup.realigned.bai/g")
+        else
+        	echo concatenated realigned bam for $SM not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
+                exit
+        fi
+
+
+
+# then probably sort and index the single file
+
+
+        echo -e '\nend concatenate for sample $SM, begin sort for sample $SM \n' &>> $LOGDIR/$START/$SM/$SM.run.log
+        # sort and mark PCR duplicates
+        samtools sort --threads $THREADS -o $MAPDIR/$SM/$SM.sort.markDup.realign.bam $MAPDIR/$SM/$SM.realign.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+
+        if [ -s $MAPDIR/$SM/$SM.sort.markDup.realign.bam ]
+        then
+                echo sorted realigned bam found, removing $MAPDIR/$SM/$SM.realign.bam &>> $LOGDIR/$START/$SM/$SM.run.log
+                #rm $MAPDIR/$SM/$SM.realign.bam
+        else
+                echo sorted realigned bam not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
+                exit
+        fi
+
+samtools index -@ $THREADS $MAPDIR/$SM/$SM.sort.markDup.realign.bam
+
+samtools stats --threads $THREADS $MAPDIR/$SM/$SM.sort.markDup.realign.bam > $QUALDIR/$SM/$SM.sort.markDup.realign.bam.bc
+mkdir $QUALDIR/$SM/realignQualPlot
+plot-bamstats -p $QUALDIR/$SM/realignQualPlot/$SM.realign $QUALDIR/$SM/$SM.sort.markDup.realign.bam.bc
 
 
 
