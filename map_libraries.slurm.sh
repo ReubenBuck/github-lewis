@@ -159,12 +159,12 @@ do
 	echo -e "\n\n\n"At $(date) processing read group:"\n"$RG &>> $LOGDIR/$START/$SM/$SM.run.log
 
 
-	if [ -d $FQDIR ]
+	if [ -d $FQDIR/$SM ]
 		then
         	echo "FQDIR found" &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
 			echo "FQDIR not found, making new one called $FQDIR" &>> $LOGDIR/$START/$SM/$SM.run.log
-			mkdir $FQDIR	
+			mkdir -p $FQDIR/$SM
 		fi
 
 	if [ -d $MAPDIR/$SM ]
@@ -197,20 +197,20 @@ do
 	if [[ $D2 = *".bam" ]]; 
 		then
 			echo data is storred in unaligned bam format, converting to fastq &>> $LOGDIR/$START/$SM/$SM.run.log
-			#samtools view -h $D1/$D2 | head -n 105000 | samtools view -Sb - > $FQDIR/tmp.$D2
-			#samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $FQDIR/tmp.$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
-			#rm $FQDIR/tmp.$D2
-			samtools fastq --threads $THREADS -1 $FQDIR/$R1 -2 $FQDIR/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			#samtools view -h $D1/$D2 | head -n 105000 | samtools view -Sb - > $FQDIR/$SM/tmp.$D2
+			#samtools fastq --threads $THREADS -1 $FQDIR/$SM/$R1 -2 $FQDIR/$SM/$R2 $FQDIR/$SM/tmp.$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
+			#rm $FQDIR/$SM/tmp.$D2
+			samtools fastq --threads $THREADS -1 $FQDIR/$SM/$R1 -2 $FQDIR/$SM/$R2 $D1/$D2 &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
 			echo data is likely storred as compressed fastq, uncompressing &>> $LOGDIR/$START/$SM/$SM.run.log
-			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$R1
-			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$R2
-			#pigz -cd -p $THREADS $D1/$R1.gz | head -n 400000 > $FQDIR/$R1
-                        #pigz -cd -p $THREADS $D2/$R2.gz | head -n 400000 > $FQDIR/$R2
+			pigz -cd -p $THREADS $D1/$R1.gz > $FQDIR/$SM/$R1
+			pigz -cd -p $THREADS $D2/$R2.gz > $FQDIR/$SM/$R2
+			#pigz -cd -p $THREADS $D1/$R1.gz | head -n 400000 > $FQDIR/$SM/$R1
+                        #pigz -cd -p $THREADS $D2/$R2.gz | head -n 400000 > $FQDIR/$SM/$R2
 		fi
 
 	# check if file succesfully uncompressed
-	if [[ -s $FQDIR/$R1 && -s $FQDIR/$R2 ]]; 
+	if [[ -s $FQDIR/$SM/$R1 && -s $FQDIR/$SM/$R2 ]]; 
 		then
 			echo uncompressed read pair files found &>> $LOGDIR/$START/$SM/$SM.run.log
 		else
@@ -220,17 +220,17 @@ do
 
 	# check quality with fastqc
 	echo running fastqc quality checks ... &>> $LOGDIR/$START/$SM/$SM.run.log
-	fastqc -o $QUALDIR/$SM $FQDIR/$R1 $FQDIR/$R2
+	fastqc -o $QUALDIR/$SM $FQDIR/$SM/$R1 $FQDIR/$SM/$R2
 
 	echo begin mapping &>> $LOGDIR/$START/$SM/$SM.run.log
 	# perfo#rm mapping
-	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$R1 $FQDIR/$R2 | samtools view -Sb - > $MAPDIR/$SM/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
+	(bwa mem -M -R $RG -t $THREADS $IDX $FQDIR/$SM/$R1 $FQDIR/$SM/$R2 | samtools view -Sb - > $MAPDIR/$SM/$SM.$ROW.bam) 2> $LOGDIR/$START/$SM/$SM.$ROW.aln.log
 
 	#check for bam files and remove fastq files once reads are mapped
 	if [ -s $MAPDIR/$SM/$SM.$ROW.bam ]
 	then 
-		echo bam file found, removing $FQDIR/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
-		#rm -r $FQDIR/{$R1,$R2}
+		echo bam file found, removing $FQDIR/$SM/{$R1,$R2} &>> $LOGDIR/$START/$SM/$SM.run.log
+		#rm -r $FQDIR/$SM/{$R1,$R2}
 	else
 		echo bam file not found or is empty, exiting &>> $LOGDIR/$START/$SM/$SM.run.log
 		exit
