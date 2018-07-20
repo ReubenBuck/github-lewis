@@ -10,11 +10,11 @@
 #SBATCH --mem-per-cpu=8G  # memory per core (default is 1GB/core)
 #SBATCH --time 2-00:00  # days-hours:minutes
 #SBATCH --qos=normal
-#SBATCH --account=general  # investors will replace this with their account name
+#SBATCH --account=biocommunity  # investors will replace this with their account name
 #
 ## labels and outputs
 #SBATCH --job-name=sra_dl
-#SBATCH --output=results-%j.out  # %j is the unique jobID
+#SBATCH --output=sra_dl-%A_%a.out  # %j is the unique jobID
 #
 ## notifications
 #SBATCH --mail-user=buckleyrm@missouri.edu  # email address for notifications
@@ -29,9 +29,9 @@
 # invoke with RUN_SHEET=<sra run sheet with header> sbatch --array=2-$(wc -l < <sra run sheet with header>) dl_sra.sh
 
 # set tmp dir for sra caching before starting, otherwise home will fill up and kill task
-#TMP=$(pwd)
-#mkdir -p $TMP/.tmp_ncbi
-#echo "/repository/user/main/public/root = \"$TMP/.tmp_ncbi\"" > $HOME/.ncbi/user-settings.mkfg
+TMP=$(pwd)
+mkdir -p $TMP/.tmp_ncbi
+echo "/repository/user/main/public/root = \"$TMP/.tmp_ncbi\"" > $HOME/.ncbi/user-settings.mkfg
 
 # load module before begining
 # module load sratoolkit/sratoolkit-2.8.1-2
@@ -45,7 +45,7 @@ sleep $((RANDOM % 5))
 
 # read sample name
 ROW=$SLURM_ARRAY_TASK_ID
-SM=$(cut -f 20 $RUN_SHEET | sed "${ROW}q;d")
+SM=$(cut -f 15 $RUN_SHEET | sed "${ROW}q;d")
 
 
 
@@ -59,10 +59,10 @@ else
 fi
 
 # get library name
-LIB=$(cut -f 11 $RUN_SHEET | sed "${ROW}q;d")
+LIB=$(cut -f 8 $RUN_SHEET | sed "${ROW}q;d")
 
 # get run name
-RUN=$(cut -f 17 $RUN_SHEET | sed "${ROW}q;d")
+RUN=$(cut -f 4 $RUN_SHEET | sed "${ROW}q;d")
 
 echo -e "\nbegin fastq dump on sample $SM, library $LIB, srr $RUN \n"
 

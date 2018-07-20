@@ -5,10 +5,10 @@
 ## resources
 #SBATCH --partition BioCompute  # for jobs < 2hrs try 'General'
 #SBATCH -N1
-#SBATCH -n28 # cores 
-#SBATCH --mem 300G  # memory 
+#SBATCH -n52 # cores 
+#SBATCH --mem 450G  # memory 
 #SBATCH -t 2-00:00  # days-hours:minutes
-#SBATCH --account=general  # investors will replace this with their account name
+#SBATCH --account=biocommunity  # investors will replace this with their account name
 #
 ## labels and outputs
 #SBATCH --job-name=map_lib
@@ -64,7 +64,7 @@ module load picard-tools/picard-tools-2.1.1
 module load java/openjdk/java-1.8.0-openjdk
 module load gatk/gatk-3.8
 
-THREADS=28
+THREADS=52
 
 
 echo $SLURM_ARRAY_TASK_ID
@@ -309,7 +309,7 @@ echo targets generated, begin realignment &>> $LOGDIR/$START/$SM/$SM.run.log
 N=$(expr $THREADS - 1)
 for TARGET in $(ls ${REF%/*}/target_loci/); do
 	(
-	sleep $((RANDOM % 10))
+	sleep $((RANDOM % 20))
 	echo begin realignment for ${TARGET%\.intervals} at $(date) &>> $LOGDIR/$START/$SM/$SM.run.log
 	java -Djava.io.tmpdir=$FQDIR/$SM/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar -T IndelRealigner -R $REF -I $MAPDIR/$SM/$SM.sorted.markedDup.bam -targetIntervals $MEDIR/$SM/$SM.indelTarget.intervals -L ${REF%/*}/target_loci/$TARGET -o $MAPDIR/$SM/$SM.${TARGET%\.intervals}.sorted.markedDup.realigned.bam 2> $LOGDIR/$START/$SM/$SM.${TARGET%\.intervals}.realign.log 
 	) &
