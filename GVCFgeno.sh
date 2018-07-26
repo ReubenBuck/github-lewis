@@ -1,14 +1,13 @@
 #!/bin/bash
 
-#SBATCH -p BioCompute
-#SBATCH --account=biocommunity
+#SBATCH -p Interactive
+#SBATCH --account=general
 #SBATCH -J GVCFgeno
-#SBATCH --mem 50G
+#SBATCH --mem 60G
 #SBATCH -N1
-#SBATCH -n28
-#SBATCH -t 2-00:00
-#SBATCH -o gtGVCFgeno.o%j
-#SBATCH -e gtGVCFgeno.e%j
+#SBATCH -n3
+#SBATCH -t 0-00:10
+#SBATCH --output=gtGVCFgeno-%A_%a-%j.out
 
 ## notifications
 #SBATCH --mail-user=buckleyrm@missouri.edu  # email address for notifications
@@ -26,21 +25,28 @@ GVCFPATH="/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf/"
 LISTPATH="/home/buckleyrm/storage.lyonslab/dom_cat_run/"
 LISTNAME="id.list"
 # name of the output vcf
-OUTPATH="/home/buckleyrm/storage.lyonslab/users/buckleyrm/cats186/"
+OUTPATH="/home/buckleyrm/storage.lyonslab/users/buckleyrm/cats186/interactive/"
 OUTNAME="dom_cat_run_186"
 #------------------------------------------------------------------
 
 module load java/openjdk/java-1.8.0-openjdk
 module load gatk/gatk-3.8
 
-awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $LISTPATH/tmp.$LISTNAME
+# invoke with sbatch --array=1-$(ls ~/storage.lyonslab/cat_ref/target_loci/ | wc -l)%2 GVCFgeno.sh 
+
+TARGETS=$(ls $REFPATH/target_loci/)
+TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
+
+
+awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -XX:ParallelGCThreads=2 -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
--nt 26 \
+-nt 1 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
--V $LISTPATH/tmp.$LISTNAME \
---out $OUTPATH/$OUTNAME.vcf.gz
+-V $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME \
+-L $REFPATH/target_loci/$TARGET \
+--out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.vcf.gz
 
 
-rm $LISTPATH/tmp.$LISTNAME
+rm $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
