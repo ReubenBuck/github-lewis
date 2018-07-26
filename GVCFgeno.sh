@@ -5,8 +5,8 @@
 #SBATCH -J GVCFgeno
 #SBATCH --mem 60G
 #SBATCH -N1
-#SBATCH -n22
-#SBATCH -t 2-00:00
+#SBATCH -n12
+#SBATCH -t 1-00:00
 #SBATCH --output=gtGVCFgeno-%A_%a-%j.out
 
 ## notifications
@@ -41,7 +41,7 @@ TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
 awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -XX:ParallelGCThreads=2 -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
--nt 20 \
+-nt 10 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
 -V $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME \
