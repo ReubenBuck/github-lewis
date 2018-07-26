@@ -40,7 +40,7 @@ TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
 
 awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
 
-java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
+java -Djava.io.tmpdir=$GVCFPATH/tmp -Xmx10g -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
 -nt 10 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
