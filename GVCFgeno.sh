@@ -3,10 +3,10 @@
 #SBATCH -p Lewis
 #SBATCH --account=biocommunity
 #SBATCH -J GVCFgeno
-#SBATCH --mem 200G
+#SBATCH --mem 100G
 #SBATCH -N1
 #SBATCH -n10
-#SBATCH -t 1-00:00
+#SBATCH -t 2-00:00
 #SBATCH --output=gtGVCFgeno-%A_%a-%j.out
 
 ## notifications
@@ -42,11 +42,21 @@ awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $L
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
 -nt 10 \
--T GenotypeGVCFs \
+-T CombineGVCFs \
 -R $REFPATH/$REFNAME \
 -V $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME \
+-L $REFPATH/target_loci/$TARGET \
+--out $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz
+
+
+java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
+-nt 10 \
+-T GenotypeGVCFs \
+-R $REFPATH/$REFNAME \
+-V $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz \
 -L $REFPATH/target_loci/$TARGET \
 --out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.vcf.gz
 
 
 rm $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
+rm $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz
