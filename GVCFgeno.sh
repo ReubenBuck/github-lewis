@@ -38,25 +38,47 @@ TARGETS=$(ls $REFPATH/target_loci/)
 TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
 
 
-awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' $LISTPATH/$LISTNAME > $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
+LEN=$(wc -l $LISTPATH/$LISTNAME | cut -f1 -d" ")
+END=$(seq $LEN $(expr $LEN / -9) 1)
+START=$(echo $(seq $(expr $LEN - $(expr $LEN / 9) + 1) $(expr $LEN / -9) 1) 1)
 
-java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
--nt 10 \
--T CombineGVCFs \
--R $REFPATH/$REFNAME \
--V $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME \
--L $REFPATH/target_loci/$TARGET \
---out $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz
+
+
+for i in $(seq 1 10); do
+
+	(
+	sleep $((RANDOM % 20))
+	awk -v start=$(echo $START | cut -f $i -d " ") -v end=$(echo $END | cut -f $i -d " ") 'NR >= start && NR <= end { print }' $LISTPATH/$LISTNAME | 
+	awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' > $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME
+
+	echo $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz 2> $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
+
+	java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
+	-T CombineGVCFs \
+	-R $REFPATH/$REFNAME \
+	-V $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME \
+	-L $REFPATH/target_loci/$TARGET \
+	--log_to_file $(pwd)/gtCompbine.${TARGET%\.intervals}.cohort_$i.log \
+	--out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
+
+	#rm $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME
+	)&
+
+done
+
+wait
 
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
 -nt 10 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
--V $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz \
+-V $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list \
 -L $REFPATH/target_loci/$TARGET \
 --out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.vcf.gz
 
 
-rm $LISTPATH/tmp.${TARGET%\.intervals}.$LISTNAME
-rm $OUTPATH/$OUTNAME.cohort.${TARGET%\.intervals}.g.vcf.gz
+#rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
+
+
+
