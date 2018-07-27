@@ -23,7 +23,7 @@
 BAM_DIR=/home/buckleyrm/storage.lyonslab/results/Felis_catus/bams/
 GVCF_DIR=/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf/
 REF=/home/buckleyrm/storage.lyonslab/cat_ref/Felis_catus_9.0.fa
-LIST=/home/buckleyrm/storage.lyonslab/dom_cat_run/cat.list
+LIST=/home/buckleyrm/storage.lyonslab/dom_cat_run/puma_lynx_cat.list
 #----------------------------------------------------------
 
 
