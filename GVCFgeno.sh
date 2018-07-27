@@ -43,15 +43,25 @@ END=$(seq $LEN $(expr $LEN / -9) 1)
 START=$(echo $(seq $(expr $LEN - $(expr $LEN / 9) + 1) $(expr $LEN / -9) 1) 1)
 
 
+# clean dir
+
+if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list ]; then
+	rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
+fi
+
 
 for i in $(seq 1 10); do
+
+	if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz ]; then
+		rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
+	fi
 
 	(
 	sleep $((RANDOM % 20))
 	awk -v start=$(echo $START | cut -f $i -d " ") -v end=$(echo $END | cut -f $i -d " ") 'NR >= start && NR <= end { print }' $LISTPATH/$LISTNAME | 
 	awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' > $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME
 
-	echo $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz 2> $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
+	echo $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz &>> $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
 
 	java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
 	-T CombineGVCFs \
@@ -77,7 +87,7 @@ java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeA
 -L $REFPATH/target_loci/$TARGET \
 --out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.vcf.gz
 
-
+#cat $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list | xargs rm
 #rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
 
 
