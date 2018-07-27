@@ -5,7 +5,7 @@
 #SBATCH -J GVCFgeno
 #SBATCH --mem 100G
 #SBATCH -N1
-#SBATCH -n10
+#SBATCH -n20
 #SBATCH -t 2-00:00
 #SBATCH --output=gtGVCFgeno-%A_%a-%j.out
 
@@ -39,8 +39,8 @@ TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
 
 
 LEN=$(wc -l $LISTPATH/$LISTNAME | cut -f1 -d" ")
-END=$(seq $LEN $(expr $LEN / -9) 1)
-START=$(echo $(seq $(expr $LEN - $(expr $LEN / 9) + 1) $(expr $LEN / -9) 1) 1)
+END=$(seq $LEN $(expr $LEN / -19) 1)
+START=$(echo $(seq $(expr $LEN - $(expr $LEN / 19) + 1) $(expr $LEN / -19) 1) 1)
 
 
 # clean dir
@@ -50,7 +50,7 @@ if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list ]; then
 fi
 
 
-for i in $(seq 1 10); do
+for i in $(seq 1 20); do
 
 	if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz ]; then
 		rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
@@ -80,7 +80,7 @@ wait
 
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
--nt 10 \
+-nt 20 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
 -V $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list \
