@@ -25,7 +25,7 @@ GVCFPATH="/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf/"
 LISTPATH="/home/buckleyrm/storage.lyonslab/dom_cat_run/"
 LISTNAME="id.list"
 # name of the output vcf
-OUTPATH="/home/buckleyrm/storage.lyonslab/users/buckleyrm/cats186/lewis/"
+OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/"
 OUTNAME="dom_cat_run_186"
 #------------------------------------------------------------------
 
