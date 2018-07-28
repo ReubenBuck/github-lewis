@@ -3,7 +3,7 @@
 #SBATCH -p Lewis
 #SBATCH --account=biocommunity
 #SBATCH -J GVCFgeno
-#SBATCH --mem 100G
+#SBATCH --mem 200G
 #SBATCH -N1
 #SBATCH -n20
 #SBATCH -t 2-00:00
@@ -52,12 +52,13 @@ fi
 
 for i in $(seq 1 20); do
 
-	if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz ]; then
-		rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
-	fi
-
 	(
 	sleep $((RANDOM % 20))
+	
+	if [ -f $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz ]; then
+                rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
+        fi
+
 	awk -v start=$(echo $START | cut -f $i -d " ") -v end=$(echo $END | cut -f $i -d " ") 'NR >= start && NR <= end { print }' $LISTPATH/$LISTNAME | 
 	awk -v gvcf=$GVCFPATH '{print gvcf "/" $0 ".g.vcf.gz"}' > $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME
 
@@ -68,7 +69,7 @@ for i in $(seq 1 20); do
 	-R $REFPATH/$REFNAME \
 	-V $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME \
 	-L $REFPATH/target_loci/$TARGET \
-	--log_to_file $(pwd)/gtCompbine.${TARGET%\.intervals}.cohort_$i.log \
+	--log_to_file $(pwd)/gtCombine.${TARGET%\.intervals}.cohort_$i.log \
 	--out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_$i.g.vcf.gz
 
 	#rm $OUTPATH/tmp.${TARGET%\.intervals}.cohort_$i.$LISTNAME
@@ -85,6 +86,7 @@ java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeA
 -R $REFPATH/$REFNAME \
 -V $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list \
 -L $REFPATH/target_loci/$TARGET \
+--log_to_file $(pwd)/gtGenotype.${TARGET%\.intervals}.log
 --out $OUTPATH/$OUTNAME.${TARGET%\.intervals}.vcf.gz
 
 #cat $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list | xargs rm
