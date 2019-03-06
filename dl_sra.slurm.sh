@@ -3,7 +3,7 @@
 #  SBATCH CONFIG
 #-------------------------------------------------------------------------------
 ## resources
-#SBATCH --partition Lewis  # for jobs < 2hrs try 'General'
+#SBATCH --partition Lewis,BioCompute  # for jobs < 2hrs try 'General'
 #SBATCH --nodes=1
 #SBATCH --ntasks=1  # used for MPI codes, otherwise leave at '1'
 #SBATCH --cpus-per-task=1 # cores per task
@@ -58,23 +58,30 @@ sleep $((RANDOM % 5))
 
 # read sample name
 ROW=$SLURM_ARRAY_TASK_ID
-SM=$(cut -f 15 $RUN_SHEET | sed "${ROW}q;d")
+SM=$(cut -f 11 $RUN_SHEET | sed "${ROW}q;d")
 
 # library name
-LIB=$(cut -f 8 $RUN_SHEET | sed "${ROW}q;d")
+LIB=$(cut -f 4 $RUN_SHEET | sed "${ROW}q;d")
 
 # get run name
-RUN=$(cut -f 14 $RUN_SHEET | sed "${ROW}q;d")
+RUN=$(cut -f 9 $RUN_SHEET | sed "${ROW}q;d")
+
+# is library paried or single
+LAYOUT=$(cut -f 27 $RUN_SHEET | sed "${ROW}q;d")
+
+# speices
+SPECIES=$(cut -f 30 $RUN_SHEET | sed "${ROW}q;d")
+SPECIES=${SPECIES// /_}
 
 
 # create dir unless it already exists
 
-if [ -d $SM/$LIB ]
+if [ -d $SPECIES/$SM/$LIB ]
 then
-        echo "$SM/$LIB dir exists, continuing"
+        echo "$SPECIES/$SM/$LIB dir exists, continuing"
 else
-        echo "$SM/$LIB dir does not exist, creating"
-        mkdir -p $SM/$LIB
+        echo "$SPECIES/$SM/$LIB dir does not exist, creating"
+        mkdir -p $SPECIES/$SM/$LIB
 fi
 
 
@@ -82,7 +89,17 @@ echo -e "\nbegin fastq dump on sample $SM, library $LIB, srr $RUN \n"
 
 
 # pull fastq RUN and store in ./sm/lib/
-fastq-dump --split-files --origfmt --gzip --outdir ./$SM/$LIB $RUN
+if [ $LAYOUT == 'PAIRED' ]
+then
+	fastq-dump --split-files --origfmt --gzip --outdir ./$SPECIES/$SM/$LIB $RUN
+elif [ $LAYOUT == 'SINGLE' ]
+then
+	fastq-dump --origfmt --gzip --outdir ./$SPECIES/$SM/$LIB $RUN
+else
+	echo "check layout"
+	exit
+fi
+
 
 #echo -e "\nfastq dump complete, renaming srr from $RUN to $LIB"
 #mv ./$SM/$LIB/${RUN}_1.fastq.gz ./$SM/$LIB/${LIB}_1.fastq.gz

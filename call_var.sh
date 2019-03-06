@@ -3,8 +3,8 @@
 # CONFIG FOR SBATCH
 #----------------------------------------------------------
 #SBATCH -p BioCompute
-#SBATCH -J varcall_raw_bam
-#SBATCH --output varcall_raw_bam.%A_%a.out
+#SBATCH -J varcall_gatk_recal_bam
+#SBATCH --output varcall_gatk_recal_bam.%A_%a.out
 #SBATCH --mem 200G
 #SBATCH -N 1
 #SBATCH -n 28
@@ -20,10 +20,12 @@
 #----------------------------------------------------------
 # CONFIG FOR JOB VAR
 #----------------------------------------------------------
-BAM_DIR=/home/buckleyrm/storage.lyonslab/results/Felis_catus/bams/
-GVCF_DIR=/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf/
+BAM_DIR=/storage/htc/lyonslab/results/Felis_catus/bams
+GVCF_DIR=/storage/htc/lyonslab/results/Felis_catus/gvcf
 REF=/home/buckleyrm/storage.lyonslab/cat_ref/Felis_catus_9.0.fa
-LIST=/home/buckleyrm/storage.lyonslab/dom_cat_run/puma_lynx_cat.list
+LIST=/home/buckleyrm/storage.lyonslab/dom_cat_run/remaining_wilds/remaining_wilds.list
+BAM_SUF="sort.markDup.realign.bam"
+OUT_SUF=".g.vcf.gz"
 #----------------------------------------------------------
 
 
@@ -54,6 +56,6 @@ java -Djava.io.tmpdir=$GVCF_DIR/tmp/$CAT_BAM -XX:ParallelGCThreads=2 -jar /clust
 -ERC GVCF \
 -T HaplotypeCaller \
 -R $REF \
--I $BAM_DIR/$CAT_BAM/$CAT_BAM.sort.markDup.realign.bam \
--o $GVCF_DIR/$CAT_BAM.g.vcf.gz
+-I $BAM_DIR/$CAT_BAM/$CAT_BAM.$BAM_SUF \
+-o $GVCF_DIR/$CAT_BAM.$OUT_SUF
 

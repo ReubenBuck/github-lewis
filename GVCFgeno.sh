@@ -17,16 +17,16 @@
 #USER defined option
 
 # Path to ref genome
-REFPATH="/home/buckleyrm/storage.lyonslab/cat_ref/"
+REFPATH="/home/buckleyrm/storage.lyonslab/cat_ref"
 REFNAME="Felis_catus_9.0.fa"
 # Path to where gvcfs are kept
-GVCFPATH="/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf/"
+GVCFPATH="/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf"
 # file containg a list of lab ids
-LISTPATH="/home/buckleyrm/storage.lyonslab/dom_cat_run/"
-LISTNAME="id.list"
+LISTPATH="/home/buckleyrm/storage.lyonslab/dom_cat_run"
+LISTNAME="99live_all_cat_191102.list"
 # name of the output vcf
-OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/"
-OUTNAME="dom_cat_run_183"
+OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/all_cat"
+OUTNAME="99Lives_All_191102"
 #------------------------------------------------------------------
 
 module load java/openjdk/java-1.8.0-openjdk
@@ -114,6 +114,5 @@ java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeA
 
 cat $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list | xargs rm
 rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list
-
-
+rm $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohort_*.g.vcf.gz.tbi
 
