@@ -1,9 +1,8 @@
 #!/bin/bash
 
-#SBATCH -p Lewis
+#SBATCH -p Lewis,BioCompute,hpc4,hpc5
 #SBATCH --account=biocommunity
-#SBATCH -J GVCFgeno
-#SBATCH -d singleton
+#SBATCH -J rename
 #SBATCH --mem 50G
 #SBATCH -N1
 #SBATCH -n1
@@ -23,11 +22,11 @@ module load bcftools/bcftools-1.8
 
 
 TMP=$(pwd)/tmp
-NAMEFILE=/home/buckleyrm/storage.lyonslab/users/buckleyrm/99_lives/181012_run/old_new_names.tsv
-VCFPATH=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/all_cat/filtered
-VCFIN=99Lives_All_191102
+NAMEFILE=/home/buckleyrm/storage.lyonslab/users/buckleyrm/name_lists/old_new_names.tsv
+VCFPATH=/home/buckleyrm/storage.hpc.buckelyrm/gvcf_geno/domestics_190823/filtered
+VCFIN=dom_filter_190823
 VCFSFX=filtered.sort.vcf.gz
-VCFOUT=99Lives_All_191102.named
+VCFOUT=domestics_190823.filtered.named
 REF=/home/buckleyrm/storage.lyonslab/cat_ref/Felis_catus_9.0.fa
 
 

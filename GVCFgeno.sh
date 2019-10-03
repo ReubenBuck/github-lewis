@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH -p BioCompute
-#SBATCH --account=biocommunity
-#SBATCH -J GVCFgeno
+#SBATCH -p hpc4,BioCompute,hpc5
+#SBATCH --account=lyonslab
+#SBATCH -J GVCFgenoAll
 #SBATCH --mem 250G
 #SBATCH -N1
 #SBATCH -n26
@@ -20,13 +20,13 @@
 REFPATH="/home/buckleyrm/storage.lyonslab/cat_ref"
 REFNAME="Felis_catus_9.0.fa"
 # Path to where gvcfs are kept
-GVCFPATH="/home/buckleyrm/storage.lyonslab/results/Felis_catus/gvcf"
+GVCFPATH="/home/buckleyrm/storage.lyonslab/users/asa_cats/combine_GVCF/gvcfs"
 # file containg a list of lab ids
-LISTPATH="/home/buckleyrm/storage.lyonslab/dom_cat_run"
-LISTNAME="99live_all_cat_191102.list"
+LISTPATH="/home/buckleyrm/storage.lyonslab/users/asa_cats/combine_GVCF"
+LISTNAME="asa3.list"
 # name of the output vcf
-OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/all_cat"
-OUTNAME="99Lives_All_191102"
+OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/domestics_190823"
+OUTNAME="domestics_190823"
 #------------------------------------------------------------------
 
 module load java/openjdk/java-1.8.0-openjdk
@@ -40,20 +40,23 @@ THREADS=20
 
 
 TARGETS=$(ls $REFPATH/target_loci/)
-TARGET=$(echo $TARGETS | cut -d " " -f $SLURM_ARRAY_TASK_ID)
+TARGET=$(echo $TARGETS | cut -d " " -f ${SLURM_ARRAY_TASK_ID})
 
 
 LEN=$(wc -l $LISTPATH/$LISTNAME | cut -f1 -d" ")
 
-if [ $(eval $LEN % $THREADS) -eq 0 ]; then
-	END=$(seq $LEN -$(expr $LEN / $THREADS) 1)
-	START=$(seq $(expr $LEN - $(expr $LEN / $THREADS) + 1) -$(expr $LEN / $THREADS) 1)
-elif [ $(eval $LEN % $THREADS) -eq 1 ]; then
-	END=$(seq $LEN -$(expr $LEN / $THREADS) $(expr $LEN / $THREADS))
-	START=$(echo $(seq $(expr $LEN - $(expr $LEN / $THREADS) + 1) -$(expr $LEN / $THREADS) $(expr $LEN / $THREADS)) 1)
+if [ $(( LEN%THREADS )) -eq 0 ]; then
+	echo LEN / THREADS is 0
+	END=$(seq $LEN -$(( LEN/THREADS )) 1)
+	START=$(seq $(( LEN-$(( LEN/THREADS ))+1 )) -$(( LEN/THREADS )) 1)
+elif [ $(( LEN%THREADS )) -eq 1 ]; then
+	echo LEN / THREADS is 1
+	END=$(seq $LEN -$(( LEN/THREADS )) $(( LEN/THREADS )))
+	START=$(echo $(seq $(( LEN-$(( LEN/THREADS ))+1 )) -$(( LEN/THREADS )) $(( LEN/THREADS ))) 1)
 else
-	END=$(seq $LEN -$(expr $(expr $LEN / $THREADS) + 1) 1)
-	START=$(echo $(seq $(expr $LEN - $(expr $LEN / $THREADS)) -$(expr $(expr $LEN / $THREADS) + 1) 1) 1)
+	echo "LEN / THREADS is > 1"
+	END=$(seq $LEN -$(( $(( LEN/THREADS ))+1 )) 1)
+	START=$(echo $(seq $(( LEN-$(( LEN/THREADS )) )) -$(( $(( LEN/THREADS ))+1 )) 1) 1)
 fi
 
 

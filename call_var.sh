@@ -2,14 +2,15 @@
 #----------------------------------------------------------
 # CONFIG FOR SBATCH
 #----------------------------------------------------------
-#SBATCH -p BioCompute
+#SBATCH -p BioCompute,hpc5,hpc4
 #SBATCH -J varcall_gatk_recal_bam
 #SBATCH --output varcall_gatk_recal_bam.%A_%a.out
 #SBATCH --mem 200G
 #SBATCH -N 1
 #SBATCH -n 28
-#SBATCH -t 2-00:00
+#SBATCH -t 7-00:00
 #SBATCH --account=biocommunity
+#SBATCH --qos=biolong
 
 
 ## notifications

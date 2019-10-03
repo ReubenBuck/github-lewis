@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p BioCompute,htc4,hpc5,Lewis
-#SBATCH --account=biocommunity
+#SBATCH --account=lyonslab
 #SBATCH -J Filter
 #SBATCH --mem 50G
 #SBATCH -N1
@@ -20,14 +20,14 @@ REF=Felis_catus_9.0.fa
 GATK=/cluster/software/gatk/gatk-3.8/
 PICARD=/cluster/software/picard-tools/picard-tools-2.1.1
 
-INDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/all_cat
-PREFIX=99Lives_All_191102
+INDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/domestics_190823
+PREFIX=domestics_190823
 
-OUTDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/all_cat/filtered
-OUT=99Lives_All_191102
+OUTDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/domestics_190823/filtered
+OUT=dom_filter_190823
 
 TMPDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/TMP
-LOGDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/log/$(date +%g-%m-%d_%H.%M.%S)
+LOGDIR=/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/domestics_190823/filtered
 
 
 #------------------------------------------------------------------
@@ -181,7 +181,7 @@ if [ -s $OUTDIR/$OUT.$TARGET.filtered.sort.vcf.gz.tbi ]; then
 	rm $OUTDIR/$OUT.$TARGET.filtered.indels.vcf.gz* &
 	rm $OUTDIR/$OUT.$TARGET.indels.vcf.gz* &
 	rm $OUTDIR/$OUT.$TARGET.snps.vcf.gz* &
-	rm -r $TMPDIR/$OUT*
+	rm -r $TMPDIR/$OUT.$TARGET
 fi
 
 wait
