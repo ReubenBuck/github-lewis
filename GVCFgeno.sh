@@ -17,16 +17,16 @@
 #USER defined option
 
 # Path to ref genome
-REFPATH="/home/buckleyrm/storage.lyonslab/cat_ref"
+REFPATH="/storage/htc/lyonslab/reference_files/fasta_genome/Felis_catus_9.0"
 REFNAME="Felis_catus_9.0.fa"
 # Path to where gvcfs are kept
-GVCFPATH="/home/buckleyrm/storage.lyonslab/users/asa_cats/combine_GVCF/gvcfs"
+GVCFPATH="/storage/htc/warrenlab/users/alanarodney/exomes/final_out/gvcf"
 # file containg a list of lab ids
-LISTPATH="/home/buckleyrm/storage.lyonslab/users/asa_cats/combine_GVCF"
-LISTNAME="asa3.list"
+LISTPATH="/storage/htc/warrenlab/users/alanarodney/exomes/gvcf_combine"
+LISTNAME="exome.list"
 # name of the output vcf
-OUTPATH="/storage/hpc/group/UMAG/WORKING/buckleyrm/gvcf_geno/domestics_190823"
-OUTNAME="domestics_190823"
+OUTPATH="/storage/htc/warrenlab/users/alanarodney/exomes/gvcf_combine/out"
+OUTNAME="191024_cat_exomes"
 #------------------------------------------------------------------
 
 module load java/openjdk/java-1.8.0-openjdk
@@ -35,7 +35,7 @@ module load gatk/gatk-3.8
 # invoke with sbatch --array=1-$(ls ~/storage.lyonslab/cat_ref/target_loci/ | wc -l)%2 GVCFgeno.sh 
 
 
-THREADS=20
+THREADS=10
 
 
 
@@ -107,7 +107,7 @@ for i in $(seq 1 $(echo $END | wc -w)); do
 done
 
 java -Djava.io.tmpdir=$GVCFPATH/tmp -jar /cluster/software/gatk/gatk-3.8/GenomeAnalysisTK.jar \
--nt 26 \
+-nt 10 \
 -T GenotypeGVCFs \
 -R $REFPATH/$REFNAME \
 -V $OUTPATH/$OUTNAME.${TARGET%\.intervals}.cohorts.list \

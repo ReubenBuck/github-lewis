@@ -23,9 +23,9 @@
 #-------------------------------------------------------------------------------
 module load samtools/samtools-1.9
 
-CRAMDIR=/storage/htc/lyonslab/new_data/190805_CAT_EXOMES/190805_50722286300467
+CRAMDIR=/home/buckleyrm/storage.lyonslab/sra_download/ena_dl
 
-for i in $(ls $CRAMDIR/*cram); do
+for i in $(ls $CRAMDIR/*bam); do
 	samtools split --threads 40 $i  
 done
 
